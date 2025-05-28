@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Record Audio and Video Separately</title>
+</head>
+<body>
+  <h1>Record Audio and Video Separately</h1>
+  <button id="startBtn">Start Recording</button>
+  <button id="stopBtn" disabled>Stop Recording</button>
+  <br/><br/>
+  <a id="audioDownload" style="display: none;" download="audio.webm">Download Audio</a>
+  <br/>
+  <a id="videoDownload" style="display: none;" download="video.webm">Download Video</a>
+
+  <script>
+    let audioRecorder, videoRecorder;
+    let audioChunks = [], videoChunks = [];
+    let audioStream, videoStream;
+
+    const isMediaRecorderSupported = () => !!window.MediaRecorder;
+
+    const getAudioFormat = () => {
+      const formats = ["audio/webm;codecs=opus", "audio/webm"];
+      return formats.find(f => MediaRecorder.isTypeSupported(f));
+    };
+
+    const getVideoFormat = () => {
+      const formats = ["video/webm;codecs=vp8", "video/webm"];
+      return formats.find(f => MediaRecorder.isTypeSupported(f));
+    };
+
+    const startRecording = async () => {
+      if (!isMediaRecorderSupported()) {
+        alert("MediaRecorder not supported on this device.");
+        return;
+      }
+
+      try {
+        audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+
+        const audioFormat = getAudioFormat();
+        const videoFormat = getVideoFormat();
+
+        if (!audioFormat || !videoFormat) {
+          alert("No suitable formats found for audio or video.");
+          return;
+        }
+
+        audioRecorder = new MediaRecorder(audioStream, { mimeType: audioFormat });
+        videoRecorder = new MediaRecorder(videoStream, { mimeType: videoFormat });
+
+        audioChunks = [];
+        videoChunks = [];
+
+        audioRecorder.ondataavailable = e => audioChunks.push(e.data);
+        videoRecorder.ondataavailable = e => videoChunks.push(e.data);
+
+        audioRecorder.start();
+        videoRecorder.start();
+
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").disabled = false;
+        document.getElementById("audioDownload").style.display = "none";
+        document.getElementById("videoDownload").style.display = "none";
+
+      } catch (err) {
+        alert("Error accessing media devices: " + err.message);
+      }
+    };
+
+    const stopRecording = () => {
+      if (audioRecorder && videoRecorder) {
+        audioRecorder.stop();
+        videoRecorder.stop();
+
+        audioRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: audioRecorder.mimeType });
+          const url = URL.createObjectURL(blob);
+          const link = document.getElementById("audioDownload");
+          link.href = url;
+          link.download = "audio.webm";
+          link.style.display = "inline";
+        };
+
+        videoRecorder.onstop = () => {
+          const blob = new Blob(videoChunks, { type: videoRecorder.mimeType });
+          const url = URL.createObjectURL(blob);
+          const link = document.getElementById("videoDownload");
+          link.href = url;
+          link.download = "video.webm";
+          link.style.display = "inline";
+
+          // Clean up
+          videoStream.getTracks().forEach(track => track.stop());
+          audioStream.getTracks().forEach(track => track.stop());
+
+          audioRecorder = null;
+          videoRecorder = null;
+        };
+
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("stopBtn").disabled = true;
+      }
+    };
+
+    document.getElementById("startBtn").addEventListener("click", startRecording);
+    document.getElementById("stopBtn").addEventListener("click", stopRecording);
+  </script>
+</body>
+</html>
