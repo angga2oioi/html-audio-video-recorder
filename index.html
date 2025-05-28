@@ -42,7 +42,7 @@
 
             try {
                 audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
                 const audioFormat = getAudioFormat();
                 const videoFormat = getVideoFormat();
